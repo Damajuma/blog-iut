@@ -15,27 +15,6 @@ if (isset($_SESSION['notification'])) {
 $page_courante = !empty($_GET['page']) ? $_GET['page'] : 1;
 
 $index_depart_MYSQL = indexPagination($page_courante, _nb_art_par_page);
-
-$nb_total_article_publie = nb_total_article_publie($bdd);
-
-$nb_pages = ceil($nb_total_article_publie / _nb_art_par_page);
-
-// Je teste pour savoir si j'ai quelque chose dans POST
-if (isset($_GET['search'])) {
-    // J'ai quelque chose donc je peux continuer
-
-    $search = $_GET['search'];
-
-    /* @var $bdd PDO */
-    $sql_search = "SELECT id "
-            . "FROM article "
-            . "WHERE texte like '$search%' ";
-    /* @var $bdd PDO */
-    $sth = $bdd->prepare($sql_search);
-
-    $result = $sth->execute();
-    var_dump($result);
-}
 ?>
 
 
@@ -60,27 +39,61 @@ if (isset($_GET['search'])) {
         <div class="col-lg-12 text-center">
 
             <?php
-            $sql_select = "SELECT "
-                    . "id, "
-                    . "titre, "
-                    . "texte, "
-                    . "publie, "
-                    . "DATE_FORMAT(date, '%d/%m/%y') as date_fr "
-                    . "FROM Bootstrap "
-                    . "WHERE publie = :publie "
-                    . "LIMIT :index_depart, :nb_limit";
-            /* @var $bdd PDO */
-            $sth = $bdd->prepare($sql_select);
+            // Je teste pour savoir si j'ai quelque chose dans POST
+            if (!empty($_GET['search'])) {
+                // J'ai quelque chose donc je peux continuer
 
-            $sth->bindValue(':publie', 1, PDO::PARAM_BOOL);
-            $sth->bindValue(':index_depart', $index_depart_MYSQL, PDO::PARAM_INT);
-            $sth->bindValue(':nb_limit', _nb_art_par_page, PDO::PARAM_INT);
+                $search = $_GET['search'];
+                $sql_select = "SELECT "
+                        . "id, "
+                        . "titre, "
+                        . "texte, "
+                        . "publie, "
+                        . "DATE_FORMAT(date, '%d/%m/%y') as date_fr "
+                        . "FROM Bootstrap "
+                        . "WHERE publie = :publie "
+                        . "AND (titre LIKE :search OR texte LIKE :search) "
+                        . "LIMIT :index_depart, :nb_limit";
+                /* @var $bdd PDO */
+                $sth = $bdd->prepare($sql_select);
 
-            $sth->execute();
-            $tab_bootstrap = $sth->fetchAll(PDO::FETCH_ASSOC);
+                $sth->bindValue(':publie', 1, PDO::PARAM_BOOL);
+                $sth->bindValue(':nb_limit', _nb_art_par_page, PDO::PARAM_INT);
 
-            //print_r2($tab_bootstrap);
+                $sth->bindValue(':index_depart', $index_depart_MYSQL, PDO::PARAM_INT);
+                $sth->bindValue(':search', '%' . $_GET['search'] . '%', PDO::PARAM_STR);
 
+                $sth->execute();
+                $tab_bootstrap = $sth->fetchAll(PDO::FETCH_ASSOC);
+
+                $nb_total_article_publie = nb_total_article_publie_like($bdd, $search);
+                $nb_pages = ceil($nb_total_article_publie / _nb_art_par_page);
+            } else {
+
+                $sql_select = "SELECT "
+                        . "id, "
+                        . "titre, "
+                        . "texte, "
+                        . "publie, "
+                        . "DATE_FORMAT(date, '%d/%m/%y') as date_fr "
+                        . "FROM Bootstrap "
+                        . "WHERE publie = :publie "
+                        . "LIMIT :index_depart, :nb_limit";
+                /* @var $bdd PDO */
+                $sth = $bdd->prepare($sql_select);
+
+                $sth->bindValue(':publie', 1, PDO::PARAM_BOOL);
+                $sth->bindValue(':index_depart', $index_depart_MYSQL, PDO::PARAM_INT);
+                $sth->bindValue(':nb_limit', _nb_art_par_page, PDO::PARAM_INT);
+
+                $sth->execute();
+                $tab_bootstrap = $sth->fetchAll(PDO::FETCH_ASSOC);
+
+                $nb_total_article_publie = nb_total_article_publie($bdd);
+                $nb_pages = ceil($nb_total_article_publie / _nb_art_par_page);
+
+                //print_r2($tab_bootstrap);
+            }
             foreach ($tab_bootstrap as $value) {
                 ?>
                 <div class="card mb-5">
@@ -98,23 +111,27 @@ if (isset($_GET['search'])) {
                     </div>
                 </div>
 
-    <?php
-}
-?>
+                <?php
+            }
+            if (empty($_GET['search'])) {
+                $search = "";
+            }
+            ?>
+
         </div>
         <div class="col-md-12">
             <nav aria-label="Page navigation example">
                 <ul class="pagination justify-content-center">
-<?php for ($i = 1; $i <= $nb_pages; $i++) { ?>
-                        <li class="page-item"><a class="page-link" href="?page=<?php echo $i; ?>"><?php echo $i; ?></a></li>
-                    <?php } ?>
+                    <?php for ($i = 1; $i <= $nb_pages; $i++) { ?>
+                        <li class="page-item"><a class="page-link" href="?page=<?php echo $i; ?>&search=<?php echo $search; ?>"><?php echo $i; ?></a></li>
+                        <?php } ?>
                 </ul>
             </nav>
         </div>
 
-<?php
-//On insert les parties HTML du site
-include_once 'include/footer.inc.php';
-?>
+        <?php
+        //On insert les parties HTML du site
+        include_once 'include/footer.inc.php';
+        ?>
     </div>
 </div>
